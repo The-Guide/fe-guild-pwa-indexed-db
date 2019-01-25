@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Promise to index my DB?</title>
+    <script src="./node_modules/idb/build/idb.js"></script>
+</head>
+<body>
+<script>
+    // IndexedDB Code will go here
+    (() => {
+        'use strict';
+
+        if (!('indexedDB' in window)) {
+            console.warn('IndexedDB not supported');
+            return;
+        }
+
+        //...IndexedDB code
+        const name = 'fe-guild';
+        const version = 6; //versions start at 1
+        const dbPromise = idb.openDb(name, version, upgradeDB => {
+            switch (upgradeDB.oldVersion) {
+                case 0:
+                // a placeholder case so that the switch block will
+                // execute when the database is first created
+                // (oldVersion is 0)
+                case 1:
+                    console.log('Creating the products object store');
+                    upgradeDB.createObjectStore('phones', {keyPath: 'id'});
+                case 2:
+                    const dogs = upgradeDB.createObjectStore('dogs');
+                    dogs.createIndex('name', 'name', {unique: false});
+                case 3:
+                    if (!upgradeDB.objectStoreNames.contains('store3')) {
+                        upgradeDB.createObjectStore('store3');
+                    }
+                case 4:
+                    const greetings = upgradeDB.createObjectStore('greetings');
+                    greetings.put('Hello world!', 'Hello');
+                case 5:
+                    const store = upgradeDB.transaction.objectStore('phones');
+                    store.createIndex('price', 'price', {unique: false});
+            }
+        });
+
+        dbPromise.then(db => {
+            const tx = db.transaction('phones', 'readwrite');
+            const store = tx.objectStore('phones');
+
+            const phones = [
+                {
+                    id: 'appl-xs',
+                    brand: 'Apple',
+                    model: 'iPhone XS',
+                    color: 'Space Gray',
+                    price: 1500,
+                },
+                {
+                    id: 'appl-6s',
+                    brand: 'Apple',
+                    model: 'iPhone 6S',
+                    color: 'Rose Gold',
+                    price: 450,
+                },
+                {
+                    id: 'galaxy-s9',
+                    brand: 'Samsung',
+                    model: 'Galaxy S9',
+                    color: 'Black',
+                    price: 750
+                }
+            ];
+
+            return Promise.all(phones.map(phone => {
+                console.log('Adding phone', phone);
+                return store.add(phone);
+            })).catch(error => {
+                tx.abort();
+                console.log(error);
+            }).then(() => console.log('All phones added successfully!'));
+        });
+
+        dbPromise.then(db => {
+            const tx = db.transaction('greetings', 'readwrite');
+            const store = tx.objectStore('greetings');
+
+            store.put('Yo!', 'Hello');
+            return tx.complete;
+        })
+        .then(() => console.log('Transaction complete!'))
+        .catch(() => console.log('Transaction failed!'));
+
+        dbPromise.then(db => {
+            const tx = db.transaction('phones');
+            const store = tx.objectStore('phones');
+
+            return store.get('appl-xs');
+        })
+        .then(phone => console.log(phone))
+        .catch(error => console.log(error));
+
+        dbPromise.then(db => {
+            const tx = db.transaction('phones');
+            const store = tx.objectStore('phones');
+
+            return store.getAll();
+        })
+        .then(phones => console.log(phones))
+        .catch(error => console.log(error));
+
+        dbPromise.then(db => {
+            const tx = db.transaction('phones', 'readonly');
+            const store = tx.objectStore('phones');
+
+            return store.openCursor();
+        })
+        .then(function logItems(cursor) {
+            if (!cursor) { return; }
+
+            console.log('cursor is at:', cursor.key);
+
+            for (const field in cursor.value) {
+                console.log(cursor.value[field]);
+            }
+
+            return cursor.continue().then(logItems);
+        })
+        .then(()=> console.log('done!'));
+
+        const searchPhoneBetweenPrices = (lower, upper) => {
+            // check if the values are not undefined, null or NaN
+
+            let range;
+            if (lower > 0 && upper > 0) {
+                range = IDBKeyRange.bound(lower, upper);
+            } else if (lower === 0) {
+                range = IDBKeyRange.upperBound(upper);
+            } else {
+                range = IDBKeyRange.lowerBound(lower);
+            }
+
+            dbPromise.then(db => {
+                const tx = db.transaction('phones', 'readonly');
+                const store = tx.objectStore('phones');
+                const index = store.index('price');
+                return index.openCursor(range);
+            })
+            .then(function showRange(cursor) {
+                if (!cursor) { return; }
+
+                console.log(`cursor is at: ${cursor.value['model']} with price ${cursor.value['price']}`);
+                return cursor.continue().then(showRange);
+            })
+            .then(() => console.log('done!'));
+        };
+
+        searchPhoneBetweenPrices(300, 1000);
+
+        idb.openDb('mydb', 1)
+            .then(() => setTimeout(()=> idb.deleteDb('mydb').then(() => console.log('mydb deleted')), 5000));
+
+        setTimeout(()=> {
+            dbPromise.then((db) => {
+                const tx = db.transaction('greetings', 'readwrite');
+                const store = tx.objectStore('greetings');
+                store.delete('Hello');
+                return tx.complete
+            })
+            .then(() => console.log('Item deleted'));
+        }, 5000);
+    })();
+</script>
+</body>
+</html>

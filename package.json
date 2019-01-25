@@ -1,0 +1,22 @@
+{
+  "name": "fe-guild-pwa-indexed-db",
+  "version": "1.0.0",
+  "description": "IndexedDB Basics Code",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raduenuca/fe-guild-pwa-indexed-db.git"
+  },
+  "author": "Radu Enuca",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/raduenuca/fe-guild-pwa-indexed-db/issues"
+  },
+  "homepage": "https://github.com/raduenuca/fe-guild-pwa-indexed-db#readme",
+  "dependencies": {
+    "idb": "^3.0.2"
+  }
+}
